@@ -1,17 +1,24 @@
-# mobile
+# Flutter Lab
 
-A new Flutter project.
+**Студент:** Фомин Дмитрий  
+**Группа:** ПиБД-33
 
-## Getting Started
+## Лабораторная 1 — Flutter + Android
+- Установлен Flutter SDK 3.47.4 и Android Studio
+- Создан Flutter-проект (Android)
+- Приложение запущено на эмуляторе Android (Medium Phone API 37.2)
+- В AppBar выведены ФИО и группа
 
-This project is a starting point for a Flutter application.
+## Лабораторная 2 — Dart
+Файл: `dart_lab/finance.dart` — консольное приложение учёта финансов.
 
-A few resources to get you started if this is your first Flutter project:
+Использованы:
+- Классы с полями и методами (`Transaction`, `Wallet`)
+- Enums (`TransactionType`, `Category`)
+- Loops
+- Generics (`filter<T>`)
+- Анонимные функции
+- Future (`syncFromServer`)
+- Extension (`TransactionStats on List<Transaction>`)
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Запуск:
