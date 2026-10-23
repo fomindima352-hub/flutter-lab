@@ -1,4 +1,3 @@
-// ============ ENUMS ============
 enum TransactionType {
   income,
   expense,
@@ -14,10 +13,9 @@ enum Category {
   other,
 }
 
-// ============ КЛАССЫ С ПОЛЯМИ И МЕТОДАМИ ============
 class Transaction {
   final String description;
-  final double amount; // всегда положительное
+  final double amount;
   final TransactionType type;
   final Category category;
   final DateTime date;
@@ -30,7 +28,6 @@ class Transaction {
     required this.date,
   });
 
-  /// Со знаком: доход +, расход -
   double get signedAmount =>
       type == TransactionType.income ? amount : -amount;
 
@@ -53,7 +50,6 @@ class Wallet {
 
   List<Transaction> get transactions => List.unmodifiable(_transactions);
 
-  /// Баланс — LOOP + ANONYMOUS FUNCTION через fold
   double get balance => _transactions.fold(
     0.0,
         (sum, t) => sum + t.signedAmount,
@@ -63,7 +59,7 @@ class Wallet {
 
   void addAll(Iterable<Transaction> ts) => _transactions.addAll(ts);
 
-  /// GENERICS: обобщённая фильтрация
+
   List<T> filter<T>(bool Function(T) predicate) {
     final result = <T>[];
     for (final item in _transactions.whereType<T>()) {
@@ -72,14 +68,12 @@ class Wallet {
     return result;
   }
 
-  /// LOOP + ANONYMOUS FUNCTION
   void printAll() {
     print('Кошелёк: $owner  (${_transactions.length} операций)');
     _transactions.forEach((t) => print('  $t'));
     print('  Баланс: ${balance.toStringAsFixed(2)} руб.');
   }
 
-  /// FUTURE: асинхронная «синхронизация с сервером»
   Future<List<Transaction>> syncFromServer() async {
     print('Синхронизация с сервером...');
     await Future.delayed(const Duration(seconds: 1));
@@ -112,23 +106,19 @@ class Wallet {
   }
 }
 
-// ============ EXTENSION ============
 extension TransactionStats on List<Transaction> {
-  /// Сумма по категории
   double totalByCategory(Category category) => where(
         (t) =>
     t.category == category &&
         t.type == TransactionType.expense,
   ).fold(0.0, (s, t) => s + t.amount);
 
-  /// Топ-N крупнейших расходов
   List<Transaction> topExpenses(int n) {
     final expenses = where((t) => t.type == TransactionType.expense).toList()
       ..sort((a, b) => b.amount.compareTo(a.amount));
     return expenses.take(n).toList();
   }
 
-  /// Средний расход
   double averageExpense() {
     final expenses =
     where((t) => t.type == TransactionType.expense).toList();
@@ -137,20 +127,18 @@ extension TransactionStats on List<Transaction> {
   }
 }
 
-// ============ MAIN ============
 Future<void> main() async {
   final wallet = Wallet('Дмитрий');
 
-  // Ручные операции
   wallet.add(Transaction(
-    description: 'Кофе в универе',
+    description: 'Шаурма',
     amount: 250,
     type: TransactionType.expense,
     category: Category.food,
     date: DateTime(2026, 10, 1),
   ));
   wallet.add(Transaction(
-    description: 'Подработка',
+    description: 'Неустановленный доход',
     amount: 15000,
     type: TransactionType.income,
     category: Category.other,
@@ -160,19 +148,16 @@ Future<void> main() async {
   print('--- До синхронизации ---');
   wallet.printAll();
 
-  // FUTURE: подгружаем с сервера
   await wallet.syncFromServer();
 
   print('\n--- После синхронизации ---');
   wallet.printAll();
 
-  // GENERICS: filter<Transaction> с анонимной функцией
   final largeExpenses =
   wallet.filter<Transaction>((t) => t.amount > 1000);
   print('\nОперации крупнее 1000 руб:');
   largeExpenses.forEach((t) => print('  → $t'));
 
-  // EXTENSION: статистика
   final all = wallet.transactions;
   print('\nСтатистика:');
   print('  Всего операций: ${all.length}');
