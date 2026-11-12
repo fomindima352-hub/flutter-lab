@@ -29,3 +29,15 @@
 - На каждой карточке: картинка (`Image.network`), название, подзаголовок и сумма
 - Модель данных: `TransactionCard`
 - Данные — финансовые операции: продукты, транспорт, развлечения, здоровье, зарплата
+## Лабораторная 5 — Клиент-серверное взаимодействие
+- Используется бэкенд Spring Boot (порт 3001) из лабораторных по «Интернет-программированию»
+- Архитектура: DTO (`ProjectDto`), интерфейс репозитория (`IProjectRepository`), реализация (`ProjectRepository`)
+- Реализована авторизация по JWT (получение токена через `/api/auth/login`)
+- Поиск проектов по категории (`/api/project/filter/by-category?category=...`)
+
+## Лабораторная 6 — BLoC и UI
+- Логика отделена от UI с использованием `flutter_bloc`
+- События: `SearchProjects`, `LoadAllProjects`, `RefreshProjects`
+- Состояния: `ProjectInitial`, `ProjectLoading`, `ProjectLoaded`, `ProjectError`
+- Реализован **Debounce** (500 мс) на поле поиска
+- Реализовано **обновление страницы** (Pull-to-Refresh через `RefreshIndicator`)

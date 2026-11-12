@@ -1,24 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'bloc/project_bloc.dart';
+import 'data/dto/project_dto.dart';
+import 'data/repositories/project_repository.dart';
 
 void main() {
   runApp(const MyApp());
-}
-
-// Модель данных для карточки
-class TransactionCard {
-  final String title;
-  final String subtitle;
-  final String amount;
-  final String imageUrl;
-  final Color tagColor;
-
-  TransactionCard({
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    required this.imageUrl,
-    required this.tagColor,
-  });
 }
 
 class MyApp extends StatelessWidget {
@@ -27,161 +15,154 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Finance Cards',
+      title: 'Благотворительность',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Фомин Дмитрий ПиБД-33'),
+      home: RepositoryProvider(
+        create: (context) => ProjectRepository(),
+        child: BlocProvider(
+          create: (context) => ProjectBloc(
+            RepositoryProvider.of<ProjectRepository>(context),
+          )..add(LoadAllProjects()), // Сразу грузим данные
+          child: const ProjectListPage(),
+        ),
+      ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class ProjectListPage extends StatefulWidget {
+  const ProjectListPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<ProjectListPage> createState() => _ProjectListPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  // Список данных
-  final List<TransactionCard> cards = [
-    TransactionCard(
-      title: 'Продукты',
-      subtitle: 'Пятёрочка',
-      amount: '- 2 450.50 ₽',
-      imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
-      tagColor: Colors.green,
-    ),
-    TransactionCard(
-      title: 'Транспорт',
-      subtitle: 'Проездной на месяц',
-      amount: '- 1 500.00 ₽',
-      imageUrl: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400',
-      tagColor: Colors.blue,
-    ),
-    TransactionCard(
-      title: 'Развлечения',
-      subtitle: 'Кино с друзьями',
-      amount: '- 800.00 ₽',
-      imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400',
-      tagColor: Colors.orange,
-    ),
-    TransactionCard(
-      title: 'Здоровье',
-      subtitle: 'Аптека',
-      amount: '- 560.00 ₽',
-      imageUrl: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=400',
-      tagColor: Colors.red,
-    ),
-    TransactionCard(
-      title: 'Зарплата',
-      subtitle: 'За сентябрь',
-      amount: '+ 80 000.00 ₽',
-      imageUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400',
-      tagColor: Colors.purple,
-    ),
-  ];
+class _ProjectListPageState extends State<ProjectListPage> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  // DEBOUNCE НА ПОИСК
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      context.read<ProjectBloc>().add(SearchProjects(query));
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Фомин Дмитрий ПиБД-33'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: cards.length,
-        itemBuilder: (context, index) {
-          final item = cards[index];
-          return _buildCard(item);
-        },
+      body: Column(
+        children: [
+          // ПОЛЕ ПОИСКА
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Поиск по категории (Дети, Животные...)',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+
+          // СПИСОК
+          Expanded(
+            child: BlocBuilder<ProjectBloc, ProjectState>(
+              builder: (context, state) {
+                if (state is ProjectLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (state is ProjectError) {
+                  return Center(child: Text('Ошибка: ${state.message}', style: const TextStyle(color: Colors.red)));
+                } else if (state is ProjectLoaded) {
+                  if (state.projects.isEmpty) {
+                    return const Center(child: Text('Ничего не найдено'));
+                  }
+
+                  // ОБНОВЛЕНИЕ СТРАНИЦЫ (PULL TO REFRESH)
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<ProjectBloc>().add(RefreshProjects(_searchController.text));
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: state.projects.length,
+                      itemBuilder: (context, index) {
+                        return _buildCard(state.projects[index]);
+                      },
+                    ),
+                  );
+                }
+                return const Center(child: Text('Загрузка...'));
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCard(TransactionCard item) {
+  // Дизайн карточки проекта
+  Widget _buildCard(ProjectDto project) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Картинка
-          Image.network(
-            item.imageUrl,
-            height: 160,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                height: 160,
-                color: Colors.grey.shade200,
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                height: 160,
-                color: Colors.grey.shade300,
-                child: const Icon(Icons.broken_image, size: 48),
-              );
-            },
-          ),
-          // Текстовый блок
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: item.tagColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        item.amount,
-                        style: TextStyle(
-                          color: item.tagColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item.subtitle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade700,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Иконка-эмодзи
+            Text(project.icon, style: const TextStyle(fontSize: 40)),
+            const SizedBox(width: 16),
+            // Текст
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    project.title,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(project.category, style: TextStyle(color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  // Прогресс-бар сбора
+                  LinearProgressIndicator(
+                    value: project.target > 0 ? project.collected / project.target : 0,
+                    backgroundColor: Colors.grey.shade200,
+                    color: Colors.teal,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Собрано: ${project.collected} из ${project.target} ₽',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
